@@ -19,7 +19,7 @@ import sqlite3
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Required for flash messages
 
-DATABASE = 'students.db'
+DATABASE = 'studentsP2.db'
 
 
 def get_db_connection():
@@ -46,23 +46,34 @@ def init_db():
 # CREATE - Add new student
 # =============================================================================
 
-@app.route('/add', methods=['GET', 'POST'])  # Allow both GET and POST
+@app.route('/add', methods=['GET', 'POST'])
 def add_student():
-    if request.method == 'POST':  # Form was submitted
-        name = request.form['name']  # Get data from form field named 'name'
+    if request.method == 'POST':
+        name = request.form['name']
         email = request.form['email']
         course = request.form['course']
 
         conn = get_db_connection()
+        
+        # --- NEW VALIDATION CODE ---
+        existing_student = conn.execute(
+            'SELECT id FROM students WHERE email = ?', (email,)
+        ).fetchone()
+
+        if existing_student:
+            conn.close()
+            flash('Error: This email is already registered!', 'danger')
+            return render_template('add.html') 
+        # ---------------------------
+
         conn.execute(
             'INSERT INTO students (name, email, course) VALUES (?, ?, ?)',
             (name, email, course)
         )
         conn.commit()
         conn.close()
-
-        flash('Student added successfully!', 'success')  # Show success message
-        return redirect(url_for('index'))  # Go back to home page
+        flash('Student added successfully!', 'success')
+        return redirect(url_for('index'))
 
     return render_template('add.html')  # GET request: show empty form
 
@@ -121,6 +132,19 @@ def delete_student(id):
 
     flash('Student deleted!', 'danger')  # Show delete message
     return redirect(url_for('index'))
+
+
+@app.route('/search')
+def search_student():
+    query = request.args.get('query') # Get the search term from the URL
+    conn = get_db_connection()
+    # SQL 'LIKE' finds partial matches (e.g., "Jo" finds "John")
+    students = conn.execute(
+        'SELECT * FROM students WHERE name LIKE ?', 
+        ('%' + query + '%',)
+    ).fetchall()
+    conn.close()
+    return render_template('index.html', students=students)
 
 
 if __name__ == '__main__':

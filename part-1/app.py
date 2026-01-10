@@ -17,7 +17,7 @@ import sqlite3  # Built-in Python library for SQLite database
 
 app = Flask(__name__)
 
-DATABASE = 'students.db'  # Database file name (will be created automatically)
+DATABASE = 'studentsP1.db'  # Database file name (will be created automatically)
 
 
 # =============================================================================
@@ -60,16 +60,21 @@ def index():
 
 
 @app.route('/add')
-def add_sample_student():
-    """Add a sample student to database (for testing)"""
+def add_multiple_students():
     conn = get_db_connection()
-    conn.execute(
+    students = [
+        ('Om', 'om@example.com', 'CSS'),
+        ('Aditi', 'aditi@example.com', 'Python'),
+        ('Rahul', 'rahul@example.com', 'Java'),
+        ('Ram', 'ram@example.com', 'DSA')
+    ]
+    conn.executemany(
         'INSERT INTO students (name, email, course) VALUES (?, ?, ?)',
-        ('John Doe', 'john@example.com', 'Python')  # ? are placeholders (safe from SQL injection)
+        students
     )
-    conn.commit()  # Don't forget to commit!
+    conn.commit()
     conn.close()
-    return 'Student added! <a href="/">Go back to home</a>'
+    return 'Multiple students added! <a href="/">Go back to home</a>'
 
 
 if __name__ == '__main__':
