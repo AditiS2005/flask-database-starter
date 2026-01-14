@@ -60,8 +60,7 @@ class Student(db.Model):  # Student table
 class Teacher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    
-    # Foreign Key: Links teacher to a course
+    email = db.Column(db.String(120), unique=True, nullable=False) # Add this line
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
 
     def __repr__(self):
@@ -76,6 +75,7 @@ class Teacher(db.Model):
 def index():
     # OLD WAY (raw SQL): conn.execute('SELECT * FROM students').fetchall()
     # NEW WAY (ORM):
+    teachers = Teacher.query.all()
     students = Student.query.all()  # Get all students
     # Exercise 2: Trying different query methods: `filter()`, `order_by()`, `limit()`
 
@@ -88,7 +88,7 @@ def index():
     # Example C: Limit, Get only first 2 students
     #students= Student.query.limit(2).all()
 
-    return render_template('index.html', students=students)
+    return render_template('index.html', students=students, teachers=teachers)
 
 
 @app.route('/courses')
@@ -164,20 +164,61 @@ def add_course():
 
 @app.route('/add-teacher', methods=['GET', 'POST'])
 def add_teacher():
-    if request.method == 'POST':
-        name = request.form['name']
-        course_id = request.form['course_id']
-
-        new_teacher = Teacher(name=name, course_id=course_id)
-        db.session.add(new_teacher)
-        db.session.commit()
-
-        flash('Teacher added successfully!', 'success')
-        return redirect(url_for('courses')) # Redirect to courses to see the update
-
     courses = Course.query.all()
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        course_id = request.form.get('course_id')
+
+        # ✅ SAFETY CHECK
+        if not name or not email or not course_id:
+            flash('All fields are required!', 'danger')
+            return redirect(url_for('add_teacher'))
+
+        teacher = Teacher(
+            name=name,
+            email=email,
+            course_id=course_id
+        )
+
+        db.session.add(teacher)
+        db.session.commit()
+        flash('Teacher added successfully!', 'success')
+        return redirect(url_for('index'))
+
     return render_template('add_teacher.html', courses=courses)
 
+
+@app.route('/edit-teacher/<int:id>', methods=['GET', 'POST'])
+def edit_teacher(id):
+    teacher = Teacher.query.get_or_404(id)
+    courses = Course.query.all()
+
+    if request.method == 'POST':
+        teacher.name = request.form.get('name')
+        teacher.email = request.form.get('email')
+        teacher.course_id = request.form.get('course_id')
+
+        if not teacher.name or not teacher.email:
+            flash('Fields cannot be empty!', 'danger')
+            return redirect(url_for('edit_teacher', id=id))
+
+        db.session.commit()
+        flash('Teacher updated!', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('edit_teacher.html', teacher=teacher, courses=courses)
+
+
+@app.route('/delete-teacher/<int:id>')
+def delete_teacher(id):
+    teacher = Teacher.query.get_or_404(id)
+    db.session.delete(teacher) # Remove the teacher object
+    db.session.commit() # Save the deletion
+    
+    flash('Teacher removed!', 'danger')
+    return redirect(url_for('courses'))
 
 # =============================================================================
 # CREATE TABLES AND ADD SAMPLE DATA

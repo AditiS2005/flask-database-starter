@@ -16,6 +16,7 @@ Prerequisites: Complete part-3 (SQLAlchemy)
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy import text
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///api_demo.db'
@@ -54,13 +55,32 @@ class Book(db.Model):
 # GET /api/books - Get all books
 @app.route('/api/books', methods=['GET'])
 def get_books():
-    books = Book.query.all()
-    return jsonify({  # Return JSON response
-        'success': True,
-        'count': len(books),
-        'books': [book.to_dict() for book in books]  # List comprehension to convert all
-    })
+    # 1. Get query parameters for pagination & sorting
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    sort_by = request.args.get('sort', 'id')  
+    order = request.args.get('order', 'asc')
 
+    # 2. Start query
+    query = Book.query
+
+    # 3. Apply Sorting (Corrected with SQLAlchemy text() function)
+    if order == 'desc':
+        query = query.order_by(text(f"{sort_by} desc"))
+    else:
+        query = query.order_by(text(f"{sort_by} asc"))
+
+    # 4. Apply Pagination
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    books = pagination.items
+
+    return jsonify({
+        'success': True,
+        'total_books': pagination.total,
+        'current_page': page,
+        'per_page': per_page,
+        'books': [book.to_dict() for book in books]
+    })
 
 # GET /api/books/<id> - Get single book
 @app.route('/api/books/<int:id>', methods=['GET'])
