@@ -116,7 +116,4 @@ function filterBooks() {
 
     renderBooks(filtered);
 }
-
-
-
 loadAuthors();

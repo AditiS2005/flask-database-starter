@@ -84,17 +84,25 @@ def index():
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
     if request.method == 'POST':
-        new_product = Product(
-            name=request.form['name'],
-            price=float(request.form['price']),
-            stock=int(request.form.get('stock', 0)),
-            description=request.form.get('description', '')
-        )
-        db.session.add(new_product)
-        db.session.commit()
-        flash('Product added!', 'success')
-        return redirect(url_for('index'))
+        # 1. Get data from the form
+        name = request.form['name']
+        price = float(request.form['price'])
+        stock = int(request.form['stock'])
+        description = request.form.get('description', '')
 
+        # 2. Create a new Product object
+        new_product = Product(name=name, price=price, stock=stock, description=description)
+
+        try:
+            # 3. Add and COMMIT to PostgreSQL
+            db.session.add(new_product)
+            db.session.commit()
+            flash('Product added successfully!', 'success')
+            return redirect(url_for('index'))
+        except Exception as e:
+            db.session.rollback() # Undo if error occurs
+            flash(f'Error: {str(e)}', 'error')
+    
     return render_template('add.html')
 
 
@@ -111,26 +119,40 @@ def delete_product(id):
 # INITIALIZE DATABASE
 # =============================================================================
 
+from sqlalchemy.exc import OperationalError # Add this import at the top
+
 def init_db():
     with app.app_context():
-        db.create_all()
-        print(f'Database initialized! Using: {DATABASE_URL}')
-
-        if Product.query.count() == 0:
-            sample = [
-                Product(name='Laptop', price=999.99, stock=10, description='High-performance laptop'),
-                Product(name='Mouse', price=29.99, stock=50, description='Wireless mouse'),
-                Product(name='Keyboard', price=79.99, stock=30, description='Mechanical keyboard'),
-            ]
-            db.session.add_all(sample)
-            db.session.commit()
-            print('Sample products added!')
-
+        try:
+            db.create_all()
+            print(f"Successfully connected to: {DATABASE_URL}")
+            
+            if Product.query.count() == 0:
+                sample = [
+                    Product(name='Laptop', price=999.99, stock=10, description='High-performance laptop'),
+                    Product(name='Mouse', price=29.99, stock=50, description='Wireless mouse'),
+                    Product(name='Keyboard', price=79.99, stock=30, description='Mechanical keyboard'),
+                ]
+                db.session.add_all(sample)
+                db.session.commit()
+                print('Sample products added!')
+        except OperationalError as e:
+            print("\n" + "="*50)
+            print("DATABASE CONNECTION ERROR!")
+            print("Could not connect to the database. Please check:")
+            print("1. Is PostgreSQL running?")
+            print("2. Is the DATABASE_URL in your .env correct?")
+            print("3. Does the database 'flask_products' exist?")
+            print(f"\nError Details: {e}")
+            print("="*50 + "\n")
+            return False # Indicate failure
+    return True
 
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=os.getenv('FLASK_DEBUG', 'True') == 'True')
-
+    if init_db():
+        app.run(debug=os.getenv('FLASK_DEBUG', 'True') == 'True')
+    else:
+        print("App failed to start due to database connection issues.")
 
 # =============================================================================
 # DATABASE URL FORMATS:
