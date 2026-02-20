@@ -36,16 +36,61 @@ class Product(db.Model):
 # =============================================================================
 
 # Route 1: Home page - display all products
-# Your code here...
-
+@app.route('/')
+def index():
+    search_query = request.args.get('search', '')
+    # Filter products if search query exists
+    if search_query:
+        products = Product.query.filter(Product.name.contains(search_query)).all()
+    else:
+        products = Product.query.all()
+    # Calculate Total Inventory Valuation
+    total_value = sum(p.price * p.quantity for p in products)  
+    return render_template('index.html', products=products, total_value=total_value)
 
 # Route 2: Add product page - form to add new product
-# Your code here...
+@app.route('/add', methods=['GET', 'POST'])
+def add_product():
+    if request.method == 'POST':
+        name = request.form['name']
+        quantity = int(request.form['quantity'])
+        price = float(request.form['price'])
+
+        new_product = Product(
+            name=name,
+            quantity=quantity,
+            price=price
+        )
+
+        db.session.add(new_product)
+        db.session.commit()
+
+        return redirect(url_for('index'))
+
+    return render_template('add.html')
 
 
 # Route 3: Delete product
-# Your code here...
+@app.route('/delete/<int:id>')
+def delete_product(id):
+    product = Product.query.get_or_404(id)
+    db.session.delete(product)
+    db.session.commit()
+    return redirect(url_for('index'))
 
+# Route 4: Edit product page
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit_product(id):
+    product = Product.query.get_or_404(id) # Find product by ID
+    if request.method == 'POST':
+        # Update values from the form
+        product.name = request.form['name']
+        product.quantity = int(request.form['quantity'])
+        product.price = float(request.form['price'])
+        
+        db.session.commit() # Save changes to inventory.db
+        return redirect(url_for('index'))
+    return render_template('edit.html', product=product)
 
 # =============================================================================
 # STEP 3: Initialize database (Already done for you)

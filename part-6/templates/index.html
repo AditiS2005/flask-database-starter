@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --neon-emerald: #10b981;
+            --text-main: #ecfdf5;
+            --text-muted: #a7f3d0;
+            --danger-red: #ef4444;
+            --deep-bg: #020617;
+        }
+
+        body { 
+            background: radial-gradient(circle at top right, #064e3b, var(--deep-bg)); 
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* SEARCH BAR FIX */
+        .search-container {
+            display: flex;
+            gap: 10px;
+            max-width: 450px;
+        }
+
+        .search-input {
+            background: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+            color: white !important; /* Forces text to be white */
+            border-radius: 8px;
+            padding: 10px 15px;
+            transition: 0.3s ease;
+        }
+
+        .search-input::placeholder {
+            color: rgba(110, 231, 183, 0.5) !important; /* Emerald-tinted placeholder */
+        }
+
+        .search-input:focus {
+            background: rgba(16, 185, 129, 0.1) !important;
+            border-color: var(--neon-emerald) !important;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3) !important;
+            outline: none;
+        }
+
+        .btn-search {
+            border: 1px solid var(--neon-emerald);
+            color: var(--neon-emerald);
+            background: transparent;
+            border-radius: 8px;
+            padding: 0 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+        }
+
+        .btn-search:hover {
+            background: var(--neon-emerald);
+            color: var(--deep-bg);
+        }
+
+        /* Stats & Layout */
+        .stat-card {
+            border: 1px solid var(--neon-emerald);
+            padding: 15px 25px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+
+        .stat-card small { color: var(--neon-emerald) !important; font-weight: 700; letter-spacing: 1px; }
+        .stat-card span { color: #ffffff !important; }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03) !important;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .table { --bs-table-bg: transparent !important; color: var(--text-main) !important; }
+        .table thead th { color: var(--neon-emerald) !important; background: rgba(0, 0, 0, 0.2) !important; padding: 20px; }
+        .table td { background: transparent !important; border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; padding: 20px; }
+
+        .btn-action { padding: 6px 16px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; text-decoration: none; display: inline-block; }
+        .btn-edit { border: 1px solid var(--neon-emerald); color: var(--neon-emerald); }
+        .btn-delete { border: 1px solid var(--danger-red); color: var(--danger-red); }
+        
+        .btn-provision { background: var(--neon-emerald); color: #020617; font-weight: 700; border-radius: 12px; border: none; padding: 12px 24px; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-7">
+                <!-- <h6 class="text-uppercase tracking-widest" style="color: var(--neon-emerald); letter-spacing: 3px;">System Status: Optimal</h6> -->
+                <h1 class="display-3 fw-bold text-white mb-0">Product Inventory<span style="color: var(--neon-emerald);">.</span></h1>
+            </div>
+            <div class="col-lg-5 text-lg-end">
+                <div class="stat-card d-inline-block text-start">
+                    <small class="text-uppercase d-block">Total Net Assets</small>
+                    <span class="fs-3 fw-bold">${{ "%.2f"|format(total_value) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row align-items-center mb-4">
+            <div class="col-md-8">
+                <form action="/" method="GET" class="search-container">
+                    <input type="text" name="search" class="form-control search-input" 
+                           placeholder="Scan for resource..." 
+                           value="{{ request.args.get('search', '') }}">
+                    <button type="submit" class="btn-search">Search</button>
+                </form>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <a href="/add" class="btn btn-provision">Add Item</a>
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Resource Name</th>
+                        <th>Capacity</th>
+                        <th>Valuation</th>
+                        <th class="text-end pe-4">Command</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td class="ps-4"><span style="color: var(--text-muted); font-family: monospace;">ID: {{ product.id }}</span></td>
+                        <td><span class="fw-bold text-white fs-5">{{ product.name }}</span></td>
+                        <td>
+                            <div class="progress mb-1" style="height: 4px; width: 100px; background: rgba(255,255,255,0.1);">
+                                <div class="progress-bar" style="background: var(--neon-emerald); width: {{ product.quantity }}%"></div>
+                            </div>
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">{{ product.quantity }} Units</span>
+                        </td>
+                        <td class="fw-bold text-white fs-5">${{ "%.2f"|format(product.price) }}</td>
+                        <td class="text-end pe-4">
+                            <a href="/edit/{{ product.id }}" class="btn-action btn-edit me-2">Edit</a>
+                            <a href="/delete/{{ product.id }}" class="btn-action btn-delete" onclick="return confirm('Erase Record?')">Delete</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
